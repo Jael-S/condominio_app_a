@@ -74,6 +74,18 @@ class StorageService {
     await prefs.remove(key);
   }
 
+  // Guardar lista de strings
+  static Future<void> saveStringList(String key, List<String> values) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(key, values);
+  }
+
+  // Obtener lista de strings
+  static Future<List<String>> getStringList(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(key) ?? <String>[];
+  }
+
   // Limpiar todas las preferencias
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();

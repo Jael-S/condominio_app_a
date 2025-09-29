@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../widgets/unified_dashboard.dart';
 
 class DashboardResidente extends StatelessWidget {
   const DashboardResidente({super.key});
@@ -52,7 +53,10 @@ class DashboardResidente extends StatelessWidget {
         'Comunicados',
         Icons.announcement,
         Colors.blue,
-        () => _showComingSoon(context, 'Comunicados'),
+        () {
+          debugPrint('🔍 Debug: Navegando a comunicados...');
+          context.go('/comunicados');
+        },
       ),
       _buildMenuCard(
         context,
@@ -203,154 +207,7 @@ class DashboardResidente extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        // Verificar autenticación
-        if (!authProvider.isAuthenticated) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            context.go('/login');
-          });
-          return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-
-        // Verificar si puede acceder desde móvil
-        if (!authProvider.canAccessMobile) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            context.go('/login');
-          });
-          return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-
-        final user = authProvider.user;
-        
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(_getPageTitle(user?.rol ?? '')),
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () => _showSettingsDialog(context),
-            ),
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () => _showLogoutDialog(context),
-            ),
-          ],
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-                // Saludo personalizado
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).primaryColor,
-                        Theme.of(context).primaryColor.withOpacity(0.8),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '¡Hola, ${user?.username ?? 'Usuario'}!',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _getWelcomeMessage(user?.rol ?? ''),
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Rol: ${user?.rol ?? 'No definido'}',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
-                          fontSize: 14,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Información del usuario
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Información de tu cuenta',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildInfoRow('Usuario', user?.username ?? 'N/A'),
-                        _buildInfoRow('Email', user?.email ?? 'N/A'),
-                        _buildInfoRow('Rol', user?.rol ?? 'N/A'),
-                        if (user?.residenteId != null)
-                          _buildInfoRow('ID Residente', user!.residenteId.toString()),
-                      ],
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Menú de opciones específicas por rol
-                Text(
-                  'Opciones disponibles',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.2,
-                  children: _getMenuOptionsForRole(context, user?.rol ?? ''),
-                ),
-            ],
-          ),
-        ),
-      );
-      },
-    );
+    return const UnifiedDashboard();
   }
 
   Widget _buildInfoRow(String label, String value) {
