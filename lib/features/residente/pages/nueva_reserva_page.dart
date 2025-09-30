@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/reservas_service.dart';
 import '../../../models/area_comun_model.dart';
 import '../../../widgets/loading_overlay.dart';
-import '../../../widgets/custom_button.dart';
-import '../../../widgets/custom_text_field.dart';
 
 class NuevaReservaPage extends StatefulWidget {
   final List<AreaComun> areasComunes;
@@ -34,7 +33,7 @@ class _NuevaReservaPageState extends State<NuevaReservaPage> {
   final _formKey = GlobalKey<FormState>();
   final _motivoController = TextEditingController();
 
-  AreaComun? _areaSeleccionada;
+  List<AreaComun> _areasSeleccionadas = [];
   DateTime? _fechaSeleccionada;
   TimeOfDay? _horaInicio;
   TimeOfDay? _horaFin;
@@ -43,8 +42,13 @@ class _NuevaReservaPageState extends State<NuevaReservaPage> {
   @override
   void initState() {
     super.initState();
+    // Inicializar locale para fechas en español
+    initializeDateFormatting('es', null);
+    
     // Inicializar con valores pre-seleccionados si existen
-    _areaSeleccionada = widget.areaPreSeleccionada;
+    if (widget.areaPreSeleccionada != null) {
+      _areasSeleccionadas = [widget.areaPreSeleccionada!];
+    }
     _fechaSeleccionada = widget.fechaPreSeleccionada;
     _horaInicio = widget.horaInicioPreSeleccionada;
     _horaFin = widget.horaFinPreSeleccionada;
@@ -58,8 +62,8 @@ class _NuevaReservaPageState extends State<NuevaReservaPage> {
 
   Future<void> _crearReserva() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_areaSeleccionada == null) {
-      _showError('Selecciona un área común');
+    if (_areasSeleccionadas.isEmpty) {
+      _showError('Selecciona al menos un área común');
       return;
     }
     if (_fechaSeleccionada == null) {
@@ -96,23 +100,28 @@ class _NuevaReservaPageState extends State<NuevaReservaPage> {
     });
 
     try {
-      final reservaData = {
-        'area': _areaSeleccionada!.id,
-        'fecha': DateFormat('yyyy-MM-dd').format(_fechaSeleccionada!),
-        'hora_inicio': '${_horaInicio!.hour.toString().padLeft(2, '0')}:${_horaInicio!.minute.toString().padLeft(2, '0')}',
-        'hora_fin': '${_horaFin!.hour.toString().padLeft(2, '0')}:${_horaFin!.minute.toString().padLeft(2, '0')}',
-        'motivo': _motivoController.text.trim().isEmpty ? null : _motivoController.text.trim(),
-        'costo': 0.0,
-      };
+      // Crear una reserva por cada área seleccionada
+      int reservasCreadas = 0;
+      for (final area in _areasSeleccionadas) {
+        final reservaData = {
+          'area': area.id,
+          'fecha': DateFormat('yyyy-MM-dd').format(_fechaSeleccionada!),
+          'hora_inicio': '${_horaInicio!.hour.toString().padLeft(2, '0')}:${_horaInicio!.minute.toString().padLeft(2, '0')}',
+          'hora_fin': '${_horaFin!.hour.toString().padLeft(2, '0')}:${_horaFin!.minute.toString().padLeft(2, '0')}',
+          'motivo': _motivoController.text.trim().isEmpty ? null : _motivoController.text.trim(),
+          'costo': 0.0,
+        };
 
-      debugPrint('🔍 Debug: Creando reserva con datos: $reservaData');
-      final reservaCreada = await ReservasService.crearReserva(authProvider.user!.token, reservaData);
-      debugPrint('✅ Debug: Reserva creada exitosamente: ${reservaCreada.id}');
+        debugPrint('🔍 Debug: Creando reserva para ${area.nombre} con datos: $reservaData');
+        final reservaCreada = await ReservasService.crearReserva(authProvider.user!.token, reservaData);
+        debugPrint('✅ Debug: Reserva creada exitosamente: ${reservaCreada.id}');
+        reservasCreadas++;
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Reserva creada exitosamente para ${_areaSeleccionada!.nombre}'),
+            content: Text('$reservasCreadas reserva(s) creada(s) exitosamente'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
@@ -154,6 +163,27 @@ class _NuevaReservaPageState extends State<NuevaReservaPage> {
         backgroundColor: Colors.red,
       ),
     );
+  }
+
+  String _calcularDuracion() {
+    if (_horaInicio == null || _horaFin == null) return '';
+    
+    final inicio = _horaInicio!.hour * 60 + _horaInicio!.minute;
+    final fin = _horaFin!.hour * 60 + _horaFin!.minute;
+    final duracion = fin - inicio;
+    
+    if (duracion <= 0) return '0 minutos';
+    
+    final horas = duracion ~/ 60;
+    final minutos = duracion % 60;
+    
+    if (horas > 0 && minutos > 0) {
+      return '${horas}h ${minutos}m';
+    } else if (horas > 0) {
+      return '${horas}h';
+    } else {
+      return '${minutos}m';
+    }
   }
 
   Future<void> _seleccionarFecha() async {
@@ -218,77 +248,169 @@ class _NuevaReservaPageState extends State<NuevaReservaPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Selección de área
-                Text(
-                  'Área Común',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<AreaComun>(
-                  initialValue: _areaSeleccionada,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Selecciona un área',
-                  ),
-                  items: widget.areasComunes
-                      .where((area) => area.estado)
-                      .map((area) => DropdownMenuItem(
-                            value: area,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                // Selección de áreas
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.location_on, color: Theme.of(context).primaryColor),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Áreas Comunes',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[100],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Múltiple',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Selecciona una o más áreas comunes:',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.grey[50],
+                          ),
+                          child: Column(
+                            children: widget.areasComunes
+                                .where((area) => area.estado)
+                                .map((area) => CheckboxListTile(
+                                      title: Text(
+                                        area.nombre,
+                                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                      ),
+                                      subtitle: Text(
+                                        area.tipo,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      value: _areasSeleccionadas.contains(area),
+                                      onChanged: (bool? value) {
+                                        setState(() {
+                                          if (value == true) {
+                                            _areasSeleccionadas.add(area);
+                                          } else {
+                                            _areasSeleccionadas.remove(area);
+                                          }
+                                        });
+                                      },
+                                      activeColor: Theme.of(context).primaryColor,
+                                    ))
+                                .toList(),
+                          ),
+                        ),
+                        if (_areasSeleccionadas.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
                               children: [
-                                Text(area.nombre),
-                                Text(
-                                  area.tipo,
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey[600],
+                                Icon(Icons.check_circle, color: Theme.of(context).primaryColor, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${_areasSeleccionadas.length} área(s) seleccionada(s)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).primaryColor,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                          ))
-                      .toList(),
-                  onChanged: (AreaComun? value) {
-                    setState(() {
-                      _areaSeleccionada = value;
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null) {
-                      return 'Selecciona un área común';
-                    }
-                    return null;
-                  },
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 24),
 
                 // Selección de fecha
-                Text(
-                  'Fecha',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: _seleccionarFecha,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.calendar_today),
-                        const SizedBox(width: 12),
-                        Text(
-                          _fechaSeleccionada != null
-                              ? DateFormat('dd/MM/yyyy').format(_fechaSeleccionada!)
-                              : 'Selecciona una fecha',
-                          style: Theme.of(context).textTheme.bodyLarge,
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today, color: Theme.of(context).primaryColor),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Fecha de Reserva',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: _seleccionarFecha,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.grey[50],
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.event, color: Theme.of(context).primaryColor),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _fechaSeleccionada != null
+                                        ? DateFormat('EEEE, dd/MM/yyyy', 'es').format(_fechaSeleccionada!)
+                                        : 'Selecciona una fecha',
+                                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      fontWeight: _fechaSeleccionada != null ? FontWeight.w600 : FontWeight.normal,
+                                      color: _fechaSeleccionada != null ? Colors.black87 : Colors.grey[600],
+                                    ),
+                                  ),
+                                ),
+                                Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -297,84 +419,207 @@ class _NuevaReservaPageState extends State<NuevaReservaPage> {
                 const SizedBox(height: 24),
 
                 // Selección de horarios
-                Text(
-                  'Horario',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.schedule, color: Theme.of(context).primaryColor),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Horario de Reserva',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: InkWell(
+                                onTap: _seleccionarHoraInicio,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey[300]!),
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: Colors.grey[50],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.play_arrow, color: Theme.of(context).primaryColor),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          _horaInicio != null
+                                              ? _horaInicio!.format(context)
+                                              : 'Hora inicio',
+                                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                            fontWeight: _horaInicio != null ? FontWeight.w600 : FontWeight.normal,
+                                            color: _horaInicio != null ? Colors.black87 : Colors.grey[600],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: InkWell(
+                                onTap: _seleccionarHoraFin,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey[300]!),
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: Colors.grey[50],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.stop, color: Theme.of(context).primaryColor),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          _horaFin != null
+                                              ? _horaFin!.format(context)
+                                              : 'Hora fin',
+                                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                            fontWeight: _horaFin != null ? FontWeight.w600 : FontWeight.normal,
+                                            color: _horaFin != null ? Colors.black87 : Colors.grey[600],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_horaInicio != null && _horaFin != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.info_outline, color: Theme.of(context).primaryColor, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Duración: ${_calcularDuracion()}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).primaryColor,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: _seleccionarHoraInicio,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.access_time),
-                              const SizedBox(width: 12),
-                              Text(
-                                _horaInicio != null
-                                    ? _horaInicio!.format(context)
-                                    : 'Hora inicio',
-                                style: Theme.of(context).textTheme.bodyLarge,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: InkWell(
-                        onTap: _seleccionarHoraFin,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.access_time),
-                              const SizedBox(width: 12),
-                              Text(
-                                _horaFin != null
-                                    ? _horaFin!.format(context)
-                                    : 'Hora fin',
-                                style: Theme.of(context).textTheme.bodyLarge,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
                 const SizedBox(height: 24),
 
                 // Motivo de la reserva
-                CustomTextField(
-                  controller: _motivoController,
-                  labelText: 'Motivo de la reserva (opcional)',
-                  hintText: 'Describe el motivo de tu reserva',
-                  maxLines: 3,
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.description, color: Theme.of(context).primaryColor),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Motivo de la Reserva',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Opcional',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _motivoController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            hintText: 'Describe el motivo de tu reserva...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                            prefixIcon: const Icon(Icons.edit_note),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 16),
-
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
                 // Botón crear reserva
-                CustomButton(
-                  text: 'Crear Reserva',
-                  onPressed: _crearReserva,
-                  isLoading: _loading,
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: _loading ? null : _crearReserva,
+                    icon: _loading 
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.add_circle_outline),
+                    label: Text(
+                      _loading ? 'Creando Reserva...' : 'Crear Reserva',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 3,
+                    ),
+                  ),
                 ),
               ],
             ),

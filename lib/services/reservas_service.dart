@@ -1,14 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import '../config/network_config.dart';
+import '../config/app_config.dart';
 import '../models/area_comun_model.dart';
 import '../models/reserva_model.dart';
 import '../models/horario_disponible_model.dart';
 
 class ReservasService {
-  static String get _baseUrl => NetworkConfig.baseUrl;
-  static const String _endpoint = '/comunidad';
 
   // Headers comunes
   static Map<String, String> _getHeaders(String token) {
@@ -21,7 +19,7 @@ class ReservasService {
   // Obtener todas las áreas comunes
   static Future<List<AreaComun>> getAreasComunes(String token) async {
     try {
-      final url = '$_baseUrl$_endpoint/areas-comunes/';
+      final url = AppConfig.areasComunesUrl;
       
       final response = await http.get(
         Uri.parse(url),
@@ -60,7 +58,7 @@ class ReservasService {
   // Obtener reservas del usuario actual
   static Future<List<Reserva>> getReservas(String token) async {
     try {
-      final url = '$_baseUrl$_endpoint/reservas/';
+      final url = AppConfig.reservasUrl;
       
       debugPrint('🔍 Debug: Obteniendo reservas desde: $url');
       debugPrint('🔍 Debug: Token: ${token.substring(0, 20)}...');
@@ -124,7 +122,7 @@ class ReservasService {
   // Crear nueva reserva
   static Future<Reserva> crearReserva(String token, Map<String, dynamic> reservaData) async {
     try {
-      final url = '$_baseUrl$_endpoint/reservas/';
+      final url = AppConfig.reservasUrl;
       final headers = _getHeaders(token);
       
       debugPrint('🔍 Debug: Creando reserva en: $url');
@@ -180,7 +178,7 @@ class ReservasService {
   ) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl$_endpoint/reservas/disponibilidad/').replace(
+        Uri.parse(AppConfig.reservasDisponibilidadUrl).replace(
           queryParameters: {
             'area_id': areaId.toString(),
             'fecha': fecha,
@@ -209,7 +207,7 @@ class ReservasService {
   ) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl$_endpoint/reservas/horarios_disponibles/').replace(
+        Uri.parse(AppConfig.reservasHorariosDisponiblesUrl).replace(
           queryParameters: {
             'area_id': areaId.toString(),
             'fecha': fecha,
@@ -242,7 +240,7 @@ class ReservasService {
   static Future<Map<String, dynamic>> confirmarReserva(String token, int reservaId) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl$_endpoint/reservas/$reservaId/confirmar/'),
+        Uri.parse('${AppConfig.reservasUrl}$reservaId/confirmar/'),
         headers: _getHeaders(token),
       );
 
@@ -260,7 +258,7 @@ class ReservasService {
   static Future<Map<String, dynamic>> cancelarReserva(String token, int reservaId) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl$_endpoint/reservas/$reservaId/cancelar/'),
+        Uri.parse('${AppConfig.reservasUrl}$reservaId/cancelar/'),
         headers: _getHeaders(token),
       );
 
@@ -282,7 +280,7 @@ class ReservasService {
   ) async {
     try {
       final response = await http.put(
-        Uri.parse('$_baseUrl$_endpoint/reservas/$reservaId/'),
+        Uri.parse('${AppConfig.reservasUrl}$reservaId/'),
         headers: _getHeaders(token),
         body: json.encode(reservaData),
       );
@@ -303,7 +301,7 @@ class ReservasService {
   static Future<void> eliminarReserva(String token, int reservaId) async {
     try {
       final response = await http.delete(
-        Uri.parse('$_baseUrl$_endpoint/reservas/$reservaId/'),
+        Uri.parse('${AppConfig.reservasUrl}$reservaId/'),
         headers: _getHeaders(token),
       );
 

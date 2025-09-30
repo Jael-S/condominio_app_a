@@ -274,7 +274,13 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
                   final bool isActive = _activeTab == item['key'];
                   final Color activeColor = header;
                   return InkWell(
-                    onTap: () => setState(() => _activeTab = item['key']),
+                    onTap: () {
+                      final String key = item['key'] as String;
+                      setState(() => _activeTab = key);
+                      if (key == 'reservas') {
+                        context.go('/reservas');
+                      }
+                    },
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [

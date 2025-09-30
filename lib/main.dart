@@ -19,7 +19,7 @@ class CondominioApp extends StatelessWidget {
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
           return MaterialApp.router(
-            title: 'Condominio App',
+            title: 'Smart Condominium',
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(
                 seedColor: const Color(0xFF2E7D32), // Verde para condominio

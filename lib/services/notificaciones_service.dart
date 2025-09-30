@@ -6,7 +6,6 @@ import 'api_service.dart';
 import 'storage_service.dart';
 
 class NotificacionesService {
-  static String get _base => '${AppConfig.baseUrl}/comunidad';
 
   static bool _isTruthy(dynamic value) {
     if (value == null) return false;
@@ -16,7 +15,7 @@ class NotificacionesService {
   }
 
   static Future<List<NotificacionModel>> listar({String? rol}) async {
-    final url = Uri.parse('$_base/notificaciones/');
+    final url = Uri.parse(AppConfig.notificacionesUrl);
     final token = await StorageService.getToken();
     final headers = token != null ? ApiService.getAuthHeaders(token) : ApiService.headers;
     final res = await http.get(url, headers: headers);

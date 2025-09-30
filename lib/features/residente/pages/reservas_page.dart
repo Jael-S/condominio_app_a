@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/reservas_service.dart';
 import '../../../models/area_comun_model.dart';
 import '../../../models/reserva_model.dart';
 import '../../../widgets/loading_overlay.dart';
 import 'nueva_reserva_page.dart';
-import 'disponibilidad_page.dart';
 
 class ReservasPage extends StatefulWidget {
   const ReservasPage({super.key});
@@ -22,6 +22,11 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
   List<Reserva> _reservas = [];
   bool _loading = true;
   String? _error;
+  AreaComun? _areaSeleccionada;
+  DateTime? _fechaSeleccionada;
+  TimeOfDay? _horaInicioSel;
+  TimeOfDay? _horaFinSel;
+  final TextEditingController _motivoCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -34,6 +39,7 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
   @override
   void dispose() {
     _tabController.dispose();
+    _motivoCtrl.dispose();
     super.dispose();
   }
 
@@ -155,29 +161,29 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
     }
   }
 
-  void _nuevaReserva() {
-    Navigator.push(
+  Future<void> _abrirFormularioNuevaReserva() async {
+    if (_areasComunes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay áreas disponibles')),
+      );
+      return;
+    }
+
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => NuevaReservaPage(
           areasComunes: _areasComunes,
           onReservaCreada: _refrescarDatos,
+          areaPreSeleccionada: _areaSeleccionada,
+          fechaPreSeleccionada: _fechaSeleccionada,
+          horaInicioPreSeleccionada: _horaInicioSel,
+          horaFinPreSeleccionada: _horaFinSel,
         ),
       ),
     );
   }
 
-  void _consultarDisponibilidad() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DisponibilidadPage(
-          areasComunes: _areasComunes,
-          onReservaCreada: _refrescarDatos,
-        ),
-      ),
-    );
-  }
 
   Future<void> _confirmarReserva(Reserva reserva) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -221,6 +227,41 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
     }
   }
 
+  Future<void> _eliminarReserva(Reserva reserva) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user?.token == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar reserva'),
+        content: const Text('Esta acción eliminará tu reserva de tu lista. ¿Deseas continuar?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('No')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Sí')),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await ReservasService.eliminarReserva(authProvider.user!.token, reserva.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reserva eliminada')),
+        );
+        _refrescarDatos();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar: $e')),
+        );
+      }
+    }
+  }
+
   Color _getEstadoColor(String estado) {
     switch (estado) {
       case 'pendiente':
@@ -255,8 +296,12 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/dashboard'),
+        ),
         title: const Text('Reservas de Áreas Comunes'),
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: _headerColorForRole(Provider.of<AuthProvider>(context, listen: false).user?.rol ?? 'residente'),
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
@@ -291,25 +336,12 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
                 ],
               ),
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton.extended(
-            onPressed: _consultarDisponibilidad,
-            icon: const Icon(Icons.search),
-            label: const Text('Disponibilidad'),
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton.extended(
-            onPressed: _nuevaReserva,
-            icon: const Icon(Icons.add),
-            label: const Text('Nueva Reserva'),
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white,
-          ),
-        ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _abrirFormularioNuevaReserva,
+        icon: const Icon(Icons.add),
+        label: const Text('Nueva Reserva'),
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
       ),
     );
   }
@@ -519,6 +551,22 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
                       ],
                     ),
                   ],
+                  // Botón eliminar si la reserva ya pasó en el tiempo
+                  if (_reservaPasada(reserva)) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _eliminarReserva(reserva),
+                        icon: const Icon(Icons.delete_forever, size: 16),
+                        label: const Text('Eliminar reserva'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -566,17 +614,9 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
           final area = _areasComunes[index];
           return Card(
             child: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => DisponibilidadPage(
-                      areasComunes: _areasComunes,
-                      areaSeleccionada: area,
-                      onReservaCreada: _refrescarDatos,
-                    ),
-                  ),
-                );
+              onTap: () async {
+                _areaSeleccionada = area;
+                await _abrirFormularioNuevaReserva();
               },
               borderRadius: BorderRadius.circular(12),
               child: Padding(
@@ -649,6 +689,29 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
         return Icons.meeting_room;
       default:
         return Icons.location_on;
+    }
+  }
+
+  Color _headerColorForRole(String role) {
+    switch (role.toLowerCase()) {
+      case 'seguridad':
+        return Colors.red[600]!;
+      case 'empleado':
+        return Colors.cyan[600]!;
+      default:
+        return Colors.green[600]!;
+    }
+  }
+
+
+  bool _reservaPasada(Reserva r) {
+    try {
+      final fecha = DateTime.parse(r.fecha);
+      final hf = r.horaFin.split(':');
+      final fin = DateTime(fecha.year, fecha.month, fecha.day, int.parse(hf[0]), int.parse(hf[1]));
+      return DateTime.now().isAfter(fin);
+    } catch (_) {
+      return false;
     }
   }
 }

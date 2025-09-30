@@ -71,8 +71,8 @@ class ApiService {
   // Verificar token
   static Future<bool> verifyToken(String token) async {
     try {
-      // Usar un endpoint que requiera autenticación para verificar el token
-      final url = Uri.parse('${AppConfig.baseUrl}/usuarios/perfil/');
+      // Usar un endpoint protegido para verificar token
+      final url = Uri.parse(AppConfig.invitadosUrl);
       
       final response = await http.get(
         url,
