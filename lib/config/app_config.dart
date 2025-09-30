@@ -20,6 +20,14 @@ class AppConfig {
   
   // Mantenimiento
   static const String areasComunesEndpoint = '/areas-comunes/';
+  static const String tareasMantenimientoEndpoint = '/tareas-mantenimiento/';
+  static const String tiposMantenimientoActivosEndpoint = '/tipos-mantenimiento/activos/';
+  
+  // Acceso y Seguridad
+  static const String registrosAccesoEndpoint = '/registros-acceso/';
+  static const String dashboardAccesoEndpoint = '/dashboard/';
+  static const String placasVehiculoEndpoint = '/placas-vehiculo/';
+  static const String placasInvitadoEndpoint = '/placas-invitado/';
   
   // Timeouts
   static const Duration connectionTimeout = Duration(seconds: 30);
@@ -46,4 +54,12 @@ class AppConfig {
   
   // Mantenimiento
   static String get areasComunesUrl => '$baseUrl$areasComunesEndpoint';
+  static String get tareasMantenimientoUrl => '$baseUrl$tareasMantenimientoEndpoint';
+  static String get tiposMantenimientoActivosUrl => '$baseUrl$tiposMantenimientoActivosEndpoint';
+  
+  // Acceso y Seguridad
+  static String get registrosAccesoUrl => '$baseUrl$registrosAccesoEndpoint';
+  static String get dashboardAccesoUrl => '$baseUrl$dashboardAccesoEndpoint';
+  static String get placasVehiculoUrl => '$baseUrl$placasVehiculoEndpoint';
+  static String get placasInvitadoUrl => '$baseUrl$placasInvitadoEndpoint';
 }
