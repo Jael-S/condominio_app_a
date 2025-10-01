@@ -7,6 +7,7 @@ import '../features/residente/pages/reservas_page.dart';
 import '../features/common/splash_page.dart';
 import '../widgets/role_router.dart';
 import '../features/residente/pages/comunicados_page.dart';
+import '../features/common/pages/comunicados_leidos_page.dart';
 
 class AppRouter {
   static final GoRouter _router = GoRouter(
@@ -53,6 +54,10 @@ class AppRouter {
       GoRoute(
         path: '/comunicados',
         builder: (context, state) => const ComunicadosPage(),
+      ),
+      GoRoute(
+        path: '/comunicados-leidos',
+        builder: (context, state) => const ComunicadosLeidosPage(),
       ),
     ],
   );

@@ -14,7 +14,6 @@ class UnifiedDashboard extends StatefulWidget {
 }
 
 class _UnifiedDashboardState extends State<UnifiedDashboard> {
-  bool _showAllOptions = false;
   String _activeTab = 'home';
   List<NotificacionModel> _unread = [];
   bool _loading = true;
@@ -37,6 +36,7 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
           {'icon': Icons.groups_rounded, 'title': 'Visitas', 'key': 'visitas'},
           {'icon': Icons.shield_rounded, 'title': 'Accesos', 'key': 'accesos'},
           {'icon': Icons.directions_car_filled_rounded, 'title': 'Vehículos', 'key': 'vehiculos'},
+          {'icon': Icons.notifications_rounded, 'title': 'Comunicados', 'key': 'comunicados'},
           {'icon': Icons.person_rounded, 'title': 'Perfil', 'key': 'perfil'},
         ],
         'extra': const [
@@ -58,6 +58,7 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
           {'icon': Icons.checklist_rounded, 'title': 'Mis Tareas', 'key': 'tareas'},
           {'icon': Icons.handyman_rounded, 'title': 'Mantenimiento', 'key': 'mantenimiento'},
           {'icon': Icons.calendar_month_rounded, 'title': 'Agenda', 'key': 'agenda'},
+          {'icon': Icons.notifications_rounded, 'title': 'Comunicados', 'key': 'comunicados'},
           {'icon': Icons.person_rounded, 'title': 'Perfil', 'key': 'perfil'},
         ],
         'extra': const [
@@ -72,13 +73,14 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
       'userName': userName,
       'headerColor': Colors.green[600]!,
       'accentColor': Colors.green[500]!,
-      'bottomNav': const [
-        {'icon': Icons.home_rounded, 'title': 'Inicio', 'key': 'home'},
-        {'icon': Icons.event_available_rounded, 'title': 'Reservas', 'key': 'reservas'},
-        {'icon': Icons.payments_rounded, 'title': 'Pagar Cuotas', 'key': 'pagos'},
-        {'icon': Icons.groups_rounded, 'title': 'Visitas', 'key': 'visitas'},
-        {'icon': Icons.person_rounded, 'title': 'Perfil', 'key': 'perfil'},
-      ],
+        'bottomNav': const [
+          {'icon': Icons.home_rounded, 'title': 'Inicio', 'key': 'home'},
+          {'icon': Icons.event_available_rounded, 'title': 'Reservas', 'key': 'reservas'},
+          {'icon': Icons.payments_rounded, 'title': 'Pagar Cuotas', 'key': 'pagos'},
+          {'icon': Icons.groups_rounded, 'title': 'Visitas', 'key': 'visitas'},
+          {'icon': Icons.notifications_rounded, 'title': 'Comunicados', 'key': 'comunicados'},
+          {'icon': Icons.person_rounded, 'title': 'Perfil', 'key': 'perfil'},
+        ],
       'extra': const [
         {'icon': Icons.history_rounded, 'title': 'Historial de Pagos'},
         {'icon': Icons.home_work_rounded, 'title': 'Mi Unidad'},
@@ -95,17 +97,33 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final role = auth.user?.rol ?? '';
     final username = auth.user?.username ?? '';
+    
+    print('🔍 DEBUG UnifiedDashboard:');
+    print('   Usuario: $username');
+    print('   Rol: $role');
+    print('   Rol en minúsculas: ${role.toLowerCase()}');
+    
     final key = 'read_notifs_${role.toLowerCase()}_$username';
     final readIds = await StorageService.getStringList(key);
     final setRead = readIds.map((e) => int.tryParse(e) ?? -1).where((e) => e > 0).toSet();
+    
+    print('   Comunicados leídos: ${setRead.length}');
+    
     try {
       final list = await NotificacionesService.listar(rol: role);
       list.sort((a, b) => b.fecha.compareTo(a.fecha));
+      
+      print('   Comunicados recibidos del servicio: ${list.length}');
+      
+      final unreadList = list.where((n) => !setRead.contains(n.id)).toList();
+      print('   Comunicados no leídos: ${unreadList.length}');
+      
       setState(() {
-        _unread = list.where((n) => !setRead.contains(n.id)).toList();
+        _unread = unreadList;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
+      print('   ❌ Error cargando comunicados: $e');
       setState(() {
         _unread = [];
         _loading = false;
@@ -114,6 +132,9 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
   }
 
   Future<void> _markAsRead(NotificacionModel n) async {
+    // Confirmar lectura en el backend
+    final success = await NotificacionesService.confirmarLectura(n.id);
+    
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final role = auth.user?.rol ?? '';
     final username = auth.user?.username ?? '';
@@ -124,6 +145,20 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
       await StorageService.saveStringList(key, list);
     }
     await _loadUnread();
+    
+    // Mostrar mensaje de confirmación
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Lectura confirmada en el servidor' : 'Marcado como leído localmente'),
+          backgroundColor: success ? Colors.green : Colors.orange,
+          action: SnackBarAction(
+            label: 'Ver leídos',
+            onPressed: () => context.go('/comunicados-leidos'),
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -256,7 +291,12 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
                 if ((_roleConfig(role, username)['extra'] as List).isNotEmpty)
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(backgroundColor: header, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(48), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    onPressed: () => setState(() => _showAllOptions = true),
+                    onPressed: () {
+                      // TODO: Implementar modal de opciones adicionales
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Funcionalidad próximamente disponible')),
+                      );
+                    },
                     icon: const Icon(Icons.grid_view_rounded),
                     label: const Text('Ver más opciones'),
                   ),
@@ -279,6 +319,8 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
                       setState(() => _activeTab = key);
                       if (key == 'reservas') {
                         context.go('/reservas');
+                      } else if (key == 'comunicados') {
+                        context.go('/comunicados');
                       }
                     },
                     child: Column(

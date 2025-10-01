@@ -72,7 +72,7 @@ class ApiService {
   static Future<bool> verifyToken(String token) async {
     try {
       // Usar un endpoint protegido para verificar token
-      final url = Uri.parse(AppConfig.invitadosUrl);
+      final url = Uri.parse(AppConfig.usuariosUrl);
       
       final response = await http.get(
         url,
@@ -82,8 +82,11 @@ class ApiService {
       if (response.statusCode == 200) {
         debugPrint('Token verificado exitosamente');
         return true;
+      } else if (response.statusCode == 401) {
+        debugPrint('Token expirado o inválido: ${response.statusCode}');
+        return false;
       } else {
-        debugPrint('Token inválido: ${response.statusCode}');
+        debugPrint('Error verificando token: ${response.statusCode}');
         return false;
       }
     } catch (e) {

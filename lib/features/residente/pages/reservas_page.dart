@@ -189,18 +189,85 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.user?.token == null) return;
 
+    // Mostrar diálogo de confirmación
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Reserva'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('¿Estás seguro de confirmar esta reserva?'),
+            const SizedBox(height: 8),
+            Text('Área: ${reserva.nombreArea}'),
+            Text('Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(reserva.fecha))}'),
+            Text('Horario: ${reserva.horaInicio} - ${reserva.horaFin}'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.green[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.green[700], size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Una vez confirmada, la reserva será visible para el administrador y se creará un evento en la agenda.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.green[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Confirmar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     try {
       await ReservasService.confirmarReserva(authProvider.user!.token, reserva.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reserva confirmada exitosamente')),
+          SnackBar(
+            content: const Text('✅ Reserva confirmada exitosamente'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
         );
         _refrescarDatos();
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = 'Error al confirmar reserva: $e';
+        if (e.toString().contains('No se puede confirmar una reserva en estado')) {
+          errorMessage = 'Esta reserva ya no puede ser confirmada.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al confirmar reserva: $e')),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -210,18 +277,85 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.user?.token == null) return;
 
+    // Mostrar diálogo de confirmación
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar Reserva'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('¿Estás seguro de cancelar esta reserva?'),
+            const SizedBox(height: 8),
+            Text('Área: ${reserva.nombreArea}'),
+            Text('Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(reserva.fecha))}'),
+            Text('Horario: ${reserva.horaInicio} - ${reserva.horaFin}'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_outlined, color: Colors.red[700], size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Esta acción cancelará la reserva y no se creará ningún evento en la agenda.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('No cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Cancelar Reserva', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     try {
       await ReservasService.cancelarReserva(authProvider.user!.token, reserva.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reserva cancelada exitosamente')),
+          SnackBar(
+            content: const Text('❌ Reserva cancelada exitosamente'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
         );
         _refrescarDatos();
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = 'Error al cancelar reserva: $e';
+        if (e.toString().contains('No se puede cancelar una reserva en estado')) {
+          errorMessage = 'Esta reserva ya no puede ser cancelada.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cancelar reserva: $e')),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -289,6 +423,21 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
         return 'Completada';
       default:
         return estado;
+    }
+  }
+
+  IconData _getEstadoIcon(String estado) {
+    switch (estado) {
+      case 'pendiente':
+        return Icons.schedule;
+      case 'confirmada':
+        return Icons.check_circle;
+      case 'cancelada':
+        return Icons.cancel;
+      case 'completada':
+        return Icons.done_all;
+      default:
+        return Icons.help_outline;
     }
   }
 
@@ -446,15 +595,31 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
                           ],
                         ),
                       ),
-                      Chip(
-                        label: Text(
-                          _getEstadoTexto(reserva.estado),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getEstadoColor(reserva.estado),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        backgroundColor: _getEstadoColor(reserva.estado),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _getEstadoIcon(reserva.estado),
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _getEstadoTexto(reserva.estado),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -523,32 +688,63 @@ class _ReservasPageState extends State<ReservasPage> with TickerProviderStateMix
                   ],
                   if (reserva.estado == 'pendiente') ...[
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _confirmarReserva(reserva),
-                            icon: const Icon(Icons.check, size: 16),
-                            label: const Text('Confirmar'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                            ),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange[200]!),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.orange[700], size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Esta reserva está pendiente de confirmación',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.orange[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _cancelarReserva(reserva),
-                            icon: const Icon(Icons.close, size: 16),
-                            label: const Text('Cancelar'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
-                            ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _confirmarReserva(reserva),
+                                  icon: const Icon(Icons.check, size: 16),
+                                  label: const Text('Confirmar'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _cancelarReserva(reserva),
+                                  icon: const Icon(Icons.close, size: 16),
+                                  label: const Text('Cancelar'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                    side: const BorderSide(color: Colors.red),
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                   // Botón eliminar si la reserva ya pasó en el tiempo

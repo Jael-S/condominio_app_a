@@ -21,8 +21,8 @@ class UserModel {
       username: json['username'] ?? '',
       email: json['email'] ?? '',
       rol: json['rol'] ?? '',
-      userId: json['user_id'] ?? 0,
-      residenteId: json['residente_id'],
+      userId: json['user_id'] ?? json['id'] ?? 0,
+      residenteId: json['residente_id'] ?? json['residente'],
     );
   }
 

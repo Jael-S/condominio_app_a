@@ -80,6 +80,7 @@ class Reserva {
       'hora_fin': horaFin,
       'motivo': motivo,
       'costo': costo,
+      'estado': estado, // Incluir estado para consistencia
     };
   }
 
