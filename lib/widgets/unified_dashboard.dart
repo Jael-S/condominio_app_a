@@ -93,6 +93,7 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
   }
 
   Future<void> _loadUnread() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final role = auth.user?.rol ?? '';
@@ -118,12 +119,14 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
       final unreadList = list.where((n) => !setRead.contains(n.id)).toList();
       print('   Comunicados no leídos: ${unreadList.length}');
       
+      if (!mounted) return;
       setState(() {
         _unread = unreadList;
         _loading = false;
       });
     } catch (e) {
       print('   ❌ Error cargando comunicados: $e');
+      if (!mounted) return;
       setState(() {
         _unread = [];
         _loading = false;
@@ -321,6 +324,13 @@ class _UnifiedDashboardState extends State<UnifiedDashboard> {
                         context.go('/reservas');
                       } else if (key == 'comunicados') {
                         context.go('/comunicados');
+                      } else if (key == 'visitas') {
+                        final r = (Provider.of<AuthProvider>(context, listen:false).user?.rol ?? '').toLowerCase();
+                        if (r == 'seguridad') {
+                          context.go('/invitados-seguridad');
+                        } else {
+                          context.go('/invitados');
+                        }
                       }
                     },
                     child: Column(

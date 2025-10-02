@@ -19,9 +19,9 @@ class AppConfig {
   static const String reservasHorariosEndpoint = '/reservas/horarios_disponibles/';
   
   // Mantenimiento
-  static const String areasComunesEndpoint = '/areas-comunes/';
-  static const String tareasMantenimientoEndpoint = '/tareas-mantenimiento/';
-  static const String tiposMantenimientoActivosEndpoint = '/tipos-mantenimiento/activos/';
+  static const String areasComunesEndpoint = '/mantenimiento/areas-comunes/';
+  static const String tareasMantenimientoEndpoint = '/mantenimiento/tareas-mantenimiento/';
+  static const String tiposMantenimientoActivosEndpoint = '/mantenimiento/tipos-mantenimiento/activos/';
   
   // Acceso y Seguridad
   static const String registrosAccesoEndpoint = '/registros-acceso/';

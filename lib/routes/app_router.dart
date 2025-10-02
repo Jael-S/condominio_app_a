@@ -8,18 +8,16 @@ import '../features/common/splash_page.dart';
 import '../widgets/role_router.dart';
 import '../features/residente/pages/comunicados_page.dart';
 import '../features/common/pages/comunicados_leidos_page.dart';
+import '../features/residente/pages/invitados_page.dart';
+import '../features/seguridad/pages/invitados_seguridad_page.dart';
 
 class AppRouter {
   static final GoRouter _router = GoRouter(
     initialLocation: '/splash',
     redirect: (context, state) {
-      // Solo redirigir si estamos en una ruta protegida sin autenticación
       if (state.uri.path == '/dashboard') {
-        // Permitir acceso al dashboard - la lógica de autenticación se maneja en las páginas
         return null;
       }
-      
-      // No redirigir automáticamente
       return null;
     },
     routes: [
@@ -58,6 +56,14 @@ class AppRouter {
       GoRoute(
         path: '/comunicados-leidos',
         builder: (context, state) => const ComunicadosLeidosPage(),
+      ),
+      GoRoute(
+        path: '/invitados',
+        builder: (context, state) => const InvitadosPage(),
+      ),
+      GoRoute(
+        path: '/invitados-seguridad',
+        builder: (context, state) => const InvitadosSeguridadPage(),
       ),
     ],
   );
